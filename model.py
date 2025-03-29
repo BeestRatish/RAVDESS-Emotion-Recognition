@@ -108,10 +108,7 @@ class EmotionRecognitionModel:
         )
         
         # Progress bar callback
-        progress_bar = tf.keras.callbacks.ProgbarLogger(
-            count_mode='steps',
-            unit_name='step'
-        )
+        progress_bar = tf.keras.callbacks.ProgbarLogger()
         
         # Train model with all callbacks
         history = self.model.fit(

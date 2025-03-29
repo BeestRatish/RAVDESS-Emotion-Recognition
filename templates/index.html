@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-time Emotion Recognition</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .controls {
+            text-align: center;
+            margin: 20px 0;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 0 10px;
+        }
+        #startBtn {
+            background-color: #4CAF50;
+            color: white;
+        }
+        #stopBtn {
+            background-color: #f44336;
+            color: white;
+        }
+        #stopBtn:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        #result {
+            text-align: center;
+            margin: 20px 0;
+            font-size: 24px;
+            font-weight: bold;
+        }
+        #visualization {
+            margin: 20px 0;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .emotion {
+            padding: 10px;
+            margin: 5px;
+            border-radius: 5px;
+            display: inline-block;
+            font-weight: bold;
+        }
+        .confidence {
+            color: #666;
+            font-size: 18px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Real-time Emotion Recognition</h1>
+        <div class="controls">
+            <button id="startBtn">Start Recording</button>
+            <button id="stopBtn" disabled>Stop Recording</button>
+        </div>
+        <div id="visualization"></div>
+        <div id="result">
+            <span class="emotion">Waiting for audio...</span>
+            <span class="confidence"></span>
+        </div>
+    </div>
+
+    <script>
+        let socket = io();
+        let mic;
+        let recorder;
+        let audioChunks = [];
+        let isRecording = false;
+        let audioContext;
+        let analyser;
+        let dataArray;
+        let bufferLength;
+        let canvas;
+        let canvasCtx;
+
+        function setup() {
+            canvas = createCanvas(400, 200);
+            canvas.parent('visualization');
+            canvasCtx = canvas.drawingContext;
+            
+            // Initialize audio context and analyzer
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            analyser = audioContext.createAnalyser();
+            analyser.fftSize = 2048;
+            bufferLength = analyser.frequencyBinCount;
+            dataArray = new Uint8Array(bufferLength);
+        }
+
+        function draw() {
+            if (!isRecording) return;
+            
+            // Get audio data
+            analyser.getByteTimeDomainData(dataArray);
+            
+            // Draw waveform
+            canvasCtx.fillStyle = 'rgb(200, 200, 200)';
+            canvasCtx.fillRect(0, 0, canvas.width, canvas.height);
+            canvasCtx.lineWidth = 2;
+            canvasCtx.strokeStyle = 'rgb(0, 0, 0)';
+            canvasCtx.beginPath();
+            
+            let sliceWidth = canvas.width * 1.0 / bufferLength;
+            let x = 0;
+            
+            for (let i = 0; i < bufferLength; i++) {
+                let v = dataArray[i] / 128.0;
+                let y = v * canvas.height / 2;
+                
+                if (i === 0) {
+                    canvasCtx.moveTo(x, y);
+                } else {
+                    canvasCtx.lineTo(x, y);
+                }
+                
+                x += sliceWidth;
+            }
+            
+            canvasCtx.lineTo(canvas.width, canvas.height / 2);
+            canvasCtx.stroke();
+        }
+
+        function startRecording() {
+            navigator.mediaDevices.getUserMedia({ audio: true })
+                .then(stream => {
+                    mic = audioContext.createMediaStreamSource(stream);
+                    mic.connect(analyser);
+                    
+                    recorder = new MediaRecorder(stream);
+                    audioChunks = [];
+                    
+                    recorder.ondataavailable = (event) => {
+                        audioChunks.push(event.data);
+                        // Send audio data to server
+                        const reader = new FileReader();
+                        reader.onload = () => {
+                            socket.emit('audio_data', reader.result);
+                        };
+                        reader.readAsDataURL(event.data);
+                    };
+                    
+                    recorder.start(1000); // Send data every second
+                    isRecording = true;
+                    
+                    document.getElementById('startBtn').disabled = true;
+                    document.getElementById('stopBtn').disabled = false;
+                })
+                .catch(err => {
+                    console.error('Error accessing microphone:', err);
+                    alert('Error accessing microphone. Please ensure you have granted microphone permissions.');
+                });
+        }
+
+        function stopRecording() {
+            if (recorder && recorder.state !== 'inactive') {
+                recorder.stop();
+                isRecording = false;
+                document.getElementById('startBtn').disabled = false;
+                document.getElementById('stopBtn').disabled = true;
+            }
+        }
+
+        // Socket.io event handlers
+        socket.on('emotion_result', (data) => {
+            const emotionElement = document.querySelector('.emotion');
+            const confidenceElement = document.querySelector('.confidence');
+            
+            emotionElement.textContent = data.emotion;
+            confidenceElement.textContent = `Confidence: ${data.confidence}`;
+            
+            // Update emotion color based on type
+            emotionElement.style.backgroundColor = getEmotionColor(data.emotion);
+        });
+
+        socket.on('error', (data) => {
+            console.error('Server error:', data.message);
+            alert('Error processing audio. Please try again.');
+        });
+
+        // Helper function to get emotion color
+        function getEmotionColor(emotion) {
+            const colors = {
+                'happy': '#FFD700',
+                'sad': '#4169E1',
+                'angry': '#FF4500',
+                'neutral': '#808080',
+                'calm': '#98FB98',
+                'fearful': '#8B4513',
+                'disgust': '#32CD32',
+                'surprised': '#FF69B4'
+            };
+            return colors[emotion] || '#FFFFFF';
+        }
+
+        // Event listeners
+        document.getElementById('startBtn').addEventListener('click', startRecording);
+        document.getElementById('stopBtn').addEventListener('click', stopRecording);
+    </script>
+</body>
+</html> 

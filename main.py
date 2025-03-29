@@ -8,7 +8,7 @@ from data_augmentation import AudioAugmentor
 import tensorflow as tf
 
 def convert_to_tflite(model, model_save_path):
-    """Convert model to TFLite format for edge devices"""
+    """Convert model to TFLite format for edge devices""" 
     # Convert the model to TFLite format
     converter = tf.lite.TFLiteConverter.from_keras_model(model)
     converter.optimizations = [tf.lite.Optimize.DEFAULT]
@@ -142,6 +142,10 @@ def main():
     # Save Keras model
     model.model.save(os.path.join(model_save_path, 'final_model.h5'))
     print("Keras model saved successfully!")
+    
+    # Save label encoder classes
+    np.save(os.path.join(model_save_path, 'label_classes.npy'), label_encoder.classes_)
+    print("Label encoder classes saved successfully!")
     
     # Convert and save TFLite model
     convert_to_tflite(model.model, model_save_path)
