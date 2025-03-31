@@ -8,6 +8,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
     <style>
         body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
             font-family: Arial, sans-serif;
             max-width: 800px;
             margin: 0 auto;
@@ -17,8 +18,87 @@
         .container {
             background-color: white;
             padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            margin-top: 50px;
+        }
+        
+        .tabs {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+        }
+        
+        .tab-btn {
+            background: none;
+            border: none;
+            padding: 10px 20px;
+            margin: 0 10px;
+            cursor: pointer;
+            font-size: 16px;
+            color: #666;
+            position: relative;
+        }
+        
+        .tab-btn.active {
+            color: #4CAF50;
+            font-weight: bold;
+        }
+        
+        .tab-btn.active::after {
+            content: '';
+            position: absolute;
+            bottom: -12px;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background-color: #4CAF50;
+        }
+        
+        .tab-content {
+            display: none;
+            padding: 20px 0;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .upload-area {
+            border: 2px dashed #ccc;
             border-radius: 10px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            padding: 40px 20px;
+            text-align: center;
+            margin: 20px 0;
+            transition: all 0.3s ease;
+        }
+        
+        .upload-area.dragover {
+            border-color: #4CAF50;
+            background-color: rgba(76, 175, 80, 0.1);
+        }
+        
+        .upload-btn {
+            background-color: #4CAF50;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-bottom: 10px;
+            transition: background-color 0.3s ease;
+        }
+        
+        .upload-btn:hover {
+            background-color: #45a049;
+        }
+        
+        .upload-text {
+            color: #666;
+            margin: 10px 0 0;
         }
         h1 {
             color: #333;
@@ -60,27 +140,59 @@
             border-radius: 5px;
         }
         .emotion {
-            padding: 10px;
-            margin: 5px;
-            border-radius: 5px;
+            padding: 15px;
+            margin: 10px;
+            border-radius: 10px;
             display: inline-block;
             font-weight: bold;
+            font-size: 24px;
+            color: white;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+            transition: all 0.3s ease;
         }
         .confidence {
             color: #666;
-            font-size: 18px;
+            font-size: 20px;
+            display: block;
+            margin-top: 10px;
+        }
+        .emoji {
+            font-size: 72px;
+            margin: 20px 0;
+            animation: pulse 1.5s infinite ease-in-out;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Real-time Emotion Recognition</h1>
-        <div class="controls">
-            <button id="startBtn">Start Recording</button>
-            <button id="stopBtn" disabled>Stop Recording</button>
+        <h1>Happy or Sad Emotion Detector</h1>
+        <div class="tabs">
+            <button class="tab-btn active" data-tab="record">Record Audio</button>
+            <button class="tab-btn" data-tab="upload">Upload Audio</button>
+        </div>
+        
+        <div id="record-tab" class="tab-content active">
+            <div class="controls">
+                <button id="startBtn">Start Recording</button>
+                <button id="stopBtn" disabled>Stop Recording</button>
+            </div>
+        </div>
+        
+        <div id="upload-tab" class="tab-content">
+            <div class="upload-area">
+                <input type="file" id="audioFile" accept="audio/*" style="display: none;">
+                <button id="uploadBtn" class="upload-btn">Choose Audio File</button>
+                <p class="upload-text">or drag and drop your audio file here</p>
+            </div>
         </div>
         <div id="visualization"></div>
         <div id="result">
+            <div class="emoji">🎤</div>
             <span class="emotion">Waiting for audio...</span>
             <span class="confidence"></span>
         </div>
@@ -88,6 +200,94 @@
 
     <script>
         let socket = io();
+        
+        // Tab switching
+        document.querySelectorAll('.tab-btn').forEach(button => {
+            button.addEventListener('click', () => {
+                document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+                
+                button.classList.add('active');
+                document.getElementById(button.dataset.tab + '-tab').classList.add('active');
+            });
+        });
+        
+        // File upload handling
+        const uploadBtn = document.getElementById('uploadBtn');
+        const audioFileInput = document.getElementById('audioFile');
+        const uploadArea = document.querySelector('.upload-area');
+        
+        uploadBtn.addEventListener('click', () => {
+            audioFileInput.click();
+        });
+        
+        audioFileInput.addEventListener('change', handleFileSelect);
+        
+        // Drag and drop handling
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+        
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+        
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            
+            const file = e.dataTransfer.files[0];
+            if (file && file.type.startsWith('audio/')) {
+                handleFileUpload(file);
+            } else {
+                alert('Please upload an audio file');
+            }
+        });
+        
+        function handleFileSelect(e) {
+            const file = e.target.files[0];
+            if (file) {
+                handleFileUpload(file);
+            }
+        }
+        
+        function handleFileUpload(file) {
+            const formData = new FormData();
+            formData.append('audio', file);
+            
+            // Update UI to show processing
+            const emotionElement = document.querySelector('.emotion');
+            emotionElement.textContent = 'Processing...';
+            emotionElement.style.backgroundColor = '#f0f0f0';
+            
+            fetch('/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                updateEmotionDisplay(data.emotion, data.confidence);
+            })
+            .catch(error => {
+                emotionElement.textContent = 'Error: ' + error.message;
+                emotionElement.style.backgroundColor = '#ffebee';
+            });
+        }
+        
+        function updateEmotionDisplay(emotion, confidence) {
+            const emotionElement = document.querySelector('.emotion');
+            const confidenceElement = document.querySelector('.confidence');
+            const emojiElement = document.querySelector('.emoji');
+            
+            emotionElement.textContent = emotion.toUpperCase();
+            emotionElement.style.backgroundColor = getEmotionColor(emotion);
+            confidenceElement.textContent = `${(confidence * 100).toFixed(1)}%`;
+            emojiElement.textContent = getEmotionEmoji(emotion);
+        }
         let mic;
         let recorder;
         let audioChunks = [];
@@ -205,16 +405,22 @@
         // Helper function to get emotion color
         function getEmotionColor(emotion) {
             const colors = {
-                'happy': '#FFD700',
+                'happy': '#32CD32',
                 'sad': '#4169E1',
-                'angry': '#FF4500',
                 'neutral': '#808080',
-                'calm': '#98FB98',
-                'fearful': '#8B4513',
-                'disgust': '#32CD32',
-                'surprised': '#FF69B4'
+                'error': '#ffebee'
             };
-            return colors[emotion] || '#FFFFFF';
+            return colors[emotion.toLowerCase()] || '#A9A9A9';
+        }
+        
+        function getEmotionEmoji(emotion) {
+            const emojis = {
+                'happy': '😊',
+                'sad': '😢',
+                'neutral': '😐',
+                'error': '❌'
+            };
+            return emojis[emotion.toLowerCase()] || '❓';
         }
 
         // Event listeners
