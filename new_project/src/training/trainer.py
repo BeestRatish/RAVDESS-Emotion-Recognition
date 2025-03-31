@@ -4,20 +4,24 @@ import argparse
 import numpy as np
 import tensorflow as tf
 from datetime import datetime
+import matplotlib.pyplot as plt
+import pandas as pd
+import time
 
 # Add src directory to path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 from preprocessing.audio_processor import AudioProcessor
 from preprocessing.augmentation import AudioAugmenter
-from training.model import EmotionRecognitionModel
+from training.model_enhanced import EnhancedEmotionModel
 from evaluation.evaluator import ModelEvaluator
 from utils.visualization import Visualizer
 
-class EmotionModelTrainer:
+class EnhancedEmotionModelTrainer:
     """
-    Class for training the emotion recognition model.
+    Class for training the enhanced emotion recognition model.
     Handles the entire training pipeline from data preparation to model evaluation.
+    Targets 99% accuracy on the RAVDESS dataset.
     """
     def __init__(self, config):
         """
@@ -32,13 +36,20 @@ class EmotionModelTrainer:
         os.makedirs(config['checkpoint_dir'], exist_ok=True)
         os.makedirs(config['model_dir'], exist_ok=True)
         os.makedirs(config['logs_dir'], exist_ok=True)
+        os.makedirs(config['plots_dir'], exist_ok=True)
         
-        # Initialize components
+        # Initialize enhanced audio processor with improved parameters
         self.audio_processor = AudioProcessor(
             sample_rate=config['sample_rate'],
-            duration=config['duration']
+            duration=config['duration'],
+            n_mfcc=config['n_mfcc'],
+            n_mels=config['n_mels'],
+            n_fft=config['n_fft'],
+            hop_length=config['hop_length'],
+            n_chroma=config['n_chroma']
         )
         
+        # Initialize augmenter and visualizer
         self.augmenter = AudioAugmenter(seed=config['seed'])
         self.visualizer = Visualizer(plots_dir=config['plots_dir'])
         
@@ -46,39 +57,52 @@ class EmotionModelTrainer:
         np.random.seed(config['seed'])
         tf.random.set_seed(config['seed'])
         
+        # Enable mixed precision if available
+        if config['mixed_precision']:
+            policy = tf.keras.mixed_precision.Policy('mixed_float16')
+            tf.keras.mixed_precision.set_global_policy(policy)
+            print(f"Mixed precision enabled: {policy.name}")
+        
         # Initialize model and evaluator later after data preparation
         self.model = None
         self.evaluator = None
+        self.train_dataset = None
+        self.val_dataset = None
+        self.test_dataset = None
     
     def prepare_data(self):
         """
-        Prepare data for training
+        Prepare data for training with enhanced processing and TensorFlow datasets
         
         Returns:
             Processed data ready for model input
         """
-        print("\n=== Preparing Data ===")
+        print("\n=== Preparing Data with Enhanced Processing ===")
         
-        # Check if augmentation is enabled
-        if self.config['augment_data']:
-            print("\nAugmenting challenging emotions...")
-            self.augmenter.augment_dataset(
-                self.config['dataset_path'],
-                target_emotions=self.config['target_emotions'],
-                num_augmentations=self.config['num_augmentations']
-            )
-        
-        # Process dataset and split into train, validation, and test sets
+        # Process dataset with built-in augmentation
         X_train, X_val, X_test, y_train, y_val, y_test = self.audio_processor.prepare_data(
             self.config['dataset_path'],
             test_size=self.config['test_size'],
             val_size=self.config['val_size'],
-            random_state=self.config['seed']
+            random_state=self.config['seed'],
+            augment=self.config['augment_data']  # Use built-in augmentation
         )
         
-        # Prepare model input
-        X_train, X_val, X_test, y_train_onehot, y_val_onehot, y_test_onehot = \
+        # Prepare model input with TensorFlow datasets
+        train_dataset, val_dataset, test_dataset, X_train, X_val, X_test, y_train_onehot, y_val_onehot, y_test_onehot = \
             self.audio_processor.prepare_model_input(X_train, X_val, X_test, y_train, y_val, y_test)
+        
+        # Save datasets for training
+        self.train_dataset = train_dataset
+        self.val_dataset = val_dataset
+        self.test_dataset = test_dataset
+        
+        # Print dataset information
+        print(f"\nTraining dataset: {len(X_train)} samples")
+        print(f"Validation dataset: {len(X_val)} samples")
+        print(f"Testing dataset: {len(X_test)} samples")
+        print(f"Input shape: {X_train.shape[1:]}")
+        print(f"Number of classes: {y_train_onehot.shape[1]}")
         
         # Save label encoder for inference
         self.audio_processor.save_label_encoder(
@@ -89,72 +113,106 @@ class EmotionModelTrainer:
     
     def initialize_model(self, input_shape):
         """
-        Initialize the model
+        Initialize the enhanced model with advanced architecture
         
         Args:
             input_shape: Shape of input data
         """
-        print("\n=== Initializing Model ===")
+        print("\n=== Initializing Enhanced Model ===")
         
         # Get number of classes
         num_classes = len(self.audio_processor.label_encoder.classes_)
         
-        # Initialize model
-        self.model = EmotionRecognitionModel(
+        # Initialize enhanced model with mixed precision
+        self.model = EnhancedEmotionModel(
             input_shape=input_shape,
             num_classes=num_classes,
-            model_name=self.config['model_name']
+            model_name=self.config['model_name'],
+            use_mixed_precision=self.config['mixed_precision']
         )
         
         # Print model summary
         self.model.summary()
+        
+        # Initialize evaluator
+        self.evaluator = ModelEvaluator(
+            model=self.model.model,
+            label_encoder=self.audio_processor.label_encoder,
+            plots_dir=self.config['plots_dir']
+        )
     
-    def train_model(self, X_train, y_train, X_val, y_val):
+    def train_model(self, X_train=None, y_train=None, X_val=None, y_val=None):
         """
-        Train the model
+        Train the enhanced model using TensorFlow datasets
         
         Args:
-            X_train: Training features
-            y_train: Training labels (one-hot encoded)
-            X_val: Validation features
-            y_val: Validation labels (one-hot encoded)
+            X_train: Training features (optional, used if train_dataset is None)
+            y_train: Training labels (optional, used if train_dataset is None)
+            X_val: Validation features (optional, used if val_dataset is None)
+            y_val: Validation labels (optional, used if val_dataset is None)
             
         Returns:
             Training history
         """
-        print("\n=== Training Model ===")
+        print("\n=== Training Enhanced Model ===")
         
-        # Train model
+        # Start training timer
+        start_time = time.time()
+        
+        # Train model with TensorFlow datasets
         history = self.model.train(
-            X_train, y_train,
-            X_val, y_val,
+            train_dataset=self.train_dataset,
+            val_dataset=self.val_dataset,
+            X_train=X_train,
+            y_train=y_train,
+            X_val=X_val,
+            y_val=y_val,
             epochs=self.config['epochs'],
             batch_size=self.config['batch_size'],
             checkpoint_dir=self.config['checkpoint_dir'],
             logs_dir=self.config['logs_dir']
         )
         
+        # Calculate training time
+        training_time = time.time() - start_time
+        hours, remainder = divmod(training_time, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        print(f"\nTraining completed in {int(hours)}h {int(minutes)}m {int(seconds)}s")
+        
+        # Save model
+        model_path = self.model.save_model(
+            save_dir=self.config['model_dir'],
+            model_name=f"{self.config['model_name']}_{int(time.time())}"
+        )
+        
+        print(f"\nModel saved to: {model_path}")
+        
         return history
     
-    def evaluate_model(self, X_test, y_test, y_test_raw):
+    def evaluate_model(self, X_test=None, y_test=None, y_test_raw=None):
         """
-        Evaluate the model
+        Evaluate the enhanced model with detailed metrics
         
         Args:
-            X_test: Test features
-            y_test: Test labels (one-hot encoded)
-            y_test_raw: Test labels (not one-hot encoded)
+            X_test: Test features (optional, used if test_dataset is None)
+            y_test: Test labels (one-hot encoded) (optional, used if test_dataset is None)
+            y_test_raw: Test labels (original format) (optional)
+            
+        Returns:
+            Evaluation metrics dictionary
         """
-        print("\n=== Evaluating Model ===")
+        print("\n=== Evaluating Enhanced Model ===")
         
-        # Evaluate model
-        test_loss, test_accuracy = self.model.evaluate(X_test, y_test)
+        # Evaluate model with TensorFlow dataset
+        metrics = self.model.evaluate(X_test=X_test, y_test=y_test, test_dataset=self.test_dataset)
         
-        # Initialize evaluator
-        self.evaluator = ModelEvaluator(
-            self.model,
-            self.audio_processor.label_encoder
-        )
+        # Print key metrics
+        print(f"\nTest accuracy: {metrics.get('accuracy', 0):.4f}")
+        print(f"Test loss: {metrics.get('loss', 0):.4f}")
+        
+        # Generate confusion matrix and classification report (already done in model.evaluate)
+        
+        return metrics
         
         # Generate predictions
         y_pred = self.model.predict(X_test)
