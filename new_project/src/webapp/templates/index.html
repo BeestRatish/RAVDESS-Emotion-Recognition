@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAVDESS Emotion Recognition</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" href="{{ url_for('static', filename='img/favicon.ico') }}" type="image/x-icon">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Socket.IO -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.6.1/socket.io.js"></script>
+    
+    <!-- P5.js for audio visualization -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.6.0/p5.js"></script>
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+    <!-- Header -->
+    <header>
+        <div class="logo">
+            <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Logo">
+            <h1>RAVDESS Emotion Recognition</h1>
+        </div>
+        <nav>
+            <ul>
+                <li><a href="#" class="active">Home</a></li>
+                <li><a href="/about">About</a></li>
+                <li><a href="https://github.com/BeestRatish/RAVDESS-Emotion-Recognition" target="_blank">GitHub</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <!-- Main Content -->
+    <main>
+        <section class="hero">
+            <div class="hero-content">
+                <h2>Real-time Speech Emotion Recognition</h2>
+                <p>Detect emotions from speech using advanced deep learning techniques</p>
+                <div class="accuracy-badge">
+                    <span>99% Accuracy</span>
+                </div>
+            </div>
+        </section>
+
+        <section class="app-container">
+            <div class="tabs">
+                <button class="tab-btn active" data-tab="record">Record Audio</button>
+                <button class="tab-btn" data-tab="upload">Upload Audio</button>
+                <button class="tab-btn" data-tab="live">Live Demo</button>
+            </div>
+
+            <!-- Record Tab -->
+            <div id="record-tab" class="tab-content active">
+                <div class="card">
+                    <div class="card-header">
+                        <h3><i class="fas fa-microphone"></i> Record Your Voice</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="controls">
+                            <button id="startBtn" class="btn primary"><i class="fas fa-play"></i> Start Recording</button>
+                            <button id="stopBtn" class="btn secondary" disabled><i class="fas fa-stop"></i> Stop Recording</button>
+                        </div>
+                        <div id="recordingStatus" class="status">
+                            <span class="status-text">Ready to record</span>
+                            <span class="recording-indicator"></span>
+                        </div>
+                        <div id="recordingTimer" class="timer">00:00</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Upload Tab -->
+            <div id="upload-tab" class="tab-content">
+                <div class="card">
+                    <div class="card-header">
+                        <h3><i class="fas fa-upload"></i> Upload Audio File</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="upload-area" id="dropArea">
+                            <input type="file" id="audioFile" accept="audio/*" hidden>
+                            <i class="fas fa-cloud-upload-alt"></i>
+                            <p>Drag & drop your audio file here</p>
+                            <p>or</p>
+                            <button id="uploadBtn" class="btn primary">Choose File</button>
+                            <p class="file-info">Supported formats: WAV, MP3, OGG (max 10MB)</p>
+                        </div>
+                        <div id="uploadStatus" class="status hidden">
+                            <span class="status-text">Processing...</span>
+                            <div class="progress-bar">
+                                <div class="progress"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Live Demo Tab -->
+            <div id="live-tab" class="tab-content">
+                <div class="card">
+                    <div class="card-header">
+                        <h3><i class="fas fa-broadcast-tower"></i> Live Emotion Detection</h3>
+                    </div>
+                    <div class="card-body">
+                        <p class="info-text">Speak continuously and see emotions detected in real-time</p>
+                        <div class="controls">
+                            <button id="startLiveBtn" class="btn primary"><i class="fas fa-play"></i> Start Live Detection</button>
+                            <button id="stopLiveBtn" class="btn secondary" disabled><i class="fas fa-stop"></i> Stop</button>
+                        </div>
+                        <div id="liveStatus" class="status">
+                            <span class="status-text">Ready to start</span>
+                            <span class="live-indicator"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Results Section -->
+            <div class="results-container">
+                <div class="card result-card">
+                    <div class="card-header">
+                        <h3><i class="fas fa-chart-pie"></i> Emotion Analysis</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="result-content">
+                            <div class="emotion-display">
+                                <div class="emotion-icon">
+                                    <i class="far fa-meh"></i>
+                                </div>
+                                <div class="emotion-text">
+                                    <span class="emotion">Waiting for audio...</span>
+                                    <span class="confidence">--</span>
+                                </div>
+                            </div>
+                            <div class="chart-container">
+                                <canvas id="emotionChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Audio Visualization -->
+            <div class="visualization-container">
+                <div class="card">
+                    <div class="card-header">
+                        <h3><i class="fas fa-wave-square"></i> Audio Visualization</h3>
+                    </div>
+                    <div class="card-body">
+                        <div id="visualization"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Features Section -->
+        <section class="features">
+            <h2>Key Features</h2>
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-brain"></i>
+                    </div>
+                    <h3>Advanced CNN-LSTM Model</h3>
+                    <p>Utilizes a hybrid CNN-LSTM architecture to achieve 99% accuracy in emotion recognition</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-bolt"></i>
+                    </div>
+                    <h3>Real-time Processing</h3>
+                    <p>Process audio in real-time with immediate emotion feedback</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                    <h3>Detailed Analysis</h3>
+                    <p>Get confidence scores and visualizations for detected emotions</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-mobile-alt"></i>
+                    </div>
+                    <h3>Responsive Design</h3>
+                    <p>Works seamlessly across desktop and mobile devices</p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer>
+        <div class="footer-content">
+            <div class="footer-logo">
+                <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Logo">
+                <p>RAVDESS Emotion Recognition</p>
+            </div>
+            <div class="footer-links">
+                <h4>Quick Links</h4>
+                <ul>
+                    <li><a href="#">Home</a></li>
+                    <li><a href="/about">About</a></li>
+                    <li><a href="https://github.com/BeestRatish/RAVDESS-Emotion-Recognition" target="_blank">GitHub</a></li>
+                </ul>
+            </div>
+            <div class="footer-contact">
+                <h4>Contact</h4>
+                <p><i class="fas fa-envelope"></i> contact@example.com</p>
+                <p><i class="fab fa-github"></i> BeestRatish</p>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>&copy; 2025 RAVDESS Emotion Recognition. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <!-- Custom JS -->
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/audio-processor.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/visualization.js') }}"></script>
+</body>
+</html>

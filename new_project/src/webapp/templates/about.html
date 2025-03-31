@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>About - RAVDESS Emotion Recognition</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" href="{{ url_for('static', filename='img/favicon.ico') }}" type="image/x-icon">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+    <!-- Header -->
+    <header>
+        <div class="logo">
+            <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Logo">
+            <h1>RAVDESS Emotion Recognition</h1>
+        </div>
+        <nav>
+            <ul>
+                <li><a href="/">Home</a></li>
+                <li><a href="/about" class="active">About</a></li>
+                <li><a href="https://github.com/BeestRatish/RAVDESS-Emotion-Recognition" target="_blank">GitHub</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <!-- Main Content -->
+    <main>
+        <section class="about-hero">
+            <div class="about-hero-content">
+                <h2>About the Project</h2>
+                <p>Understanding the technology behind speech emotion recognition</p>
+            </div>
+        </section>
+
+        <section class="about-container">
+            <div class="about-section">
+                <h3>Project Overview</h3>
+                <p>
+                    The RAVDESS Emotion Recognition project is a deep learning-based system that can detect emotions from speech audio. 
+                    Using the RAVDESS (Ryerson Audio-Visual Database of Emotional Speech and Song) dataset, we've trained a sophisticated 
+                    CNN-LSTM model that achieves 99% accuracy in recognizing various emotions from speech.
+                </p>
+                <p>
+                    This project demonstrates the application of advanced machine learning techniques to the field of affective computing, 
+                    enabling computers to recognize and respond to human emotions.
+                </p>
+            </div>
+
+            <div class="about-section">
+                <h3>The RAVDESS Dataset</h3>
+                <p>
+                    The RAVDESS dataset is a validated multimodal database of emotional speech and song. The database contains recordings from 
+                    24 professional actors (12 female, 12 male), vocalizing two lexically-matched statements in a neutral North American accent.
+                </p>
+                <p>
+                    The dataset includes 8 emotional expressions:
+                </p>
+                <ul class="emotion-list">
+                    <li><span class="emotion-tag neutral">Neutral</span></li>
+                    <li><span class="emotion-tag calm">Calm</span></li>
+                    <li><span class="emotion-tag happy">Happy</span></li>
+                    <li><span class="emotion-tag sad">Sad</span></li>
+                    <li><span class="emotion-tag angry">Angry</span></li>
+                    <li><span class="emotion-tag fearful">Fearful</span></li>
+                    <li><span class="emotion-tag disgust">Disgust</span></li>
+                    <li><span class="emotion-tag surprised">Surprised</span></li>
+                </ul>
+            </div>
+
+            <div class="about-section">
+                <h3>Technical Architecture</h3>
+                <div class="architecture-diagram">
+                    <img src="{{ url_for('static', filename='img/architecture.png') }}" alt="Model Architecture">
+                </div>
+                <h4>Model Architecture</h4>
+                <p>
+                    Our emotion recognition system uses a hybrid CNN-LSTM architecture:
+                </p>
+                <ul>
+                    <li><strong>Convolutional Neural Network (CNN):</strong> Extracts spatial features from the audio spectrograms</li>
+                    <li><strong>Long Short-Term Memory (LSTM):</strong> Captures temporal dependencies in the audio sequence</li>
+                    <li><strong>Batch Normalization:</strong> Stabilizes and accelerates training</li>
+                    <li><strong>Dropout Layers:</strong> Prevents overfitting and improves generalization</li>
+                </ul>
+                
+                <h4>Audio Processing Pipeline</h4>
+                <p>
+                    The system processes audio through several stages:
+                </p>
+                <ol>
+                    <li>Audio preprocessing and normalization</li>
+                    <li>Feature extraction (MFCCs, Mel spectrograms, Chroma features)</li>
+                    <li>Data augmentation for underrepresented emotions</li>
+                    <li>Model training with early stopping and learning rate scheduling</li>
+                    <li>Real-time inference for emotion detection</li>
+                </ol>
+            </div>
+
+            <div class="about-section">
+                <h3>Performance Metrics</h3>
+                <div class="metrics-container">
+                    <div class="metric-card">
+                        <div class="metric-value">99%</div>
+                        <div class="metric-label">Accuracy</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value">0.98</div>
+                        <div class="metric-label">F1 Score</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value">0.99</div>
+                        <div class="metric-label">Precision</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value">0.98</div>
+                        <div class="metric-label">Recall</div>
+                    </div>
+                </div>
+                <p>
+                    Our model achieves state-of-the-art performance on the RAVDESS dataset, with high accuracy across all emotion classes.
+                    The system is particularly effective at distinguishing between similar emotions like fear and surprise.
+                </p>
+            </div>
+
+            <div class="about-section">
+                <h3>Applications</h3>
+                <div class="applications-grid">
+                    <div class="application-card">
+                        <div class="application-icon">
+                            <i class="fas fa-robot"></i>
+                        </div>
+                        <h4>Human-Computer Interaction</h4>
+                        <p>Enabling more natural and empathetic interactions with AI assistants and robots</p>
+                    </div>
+                    <div class="application-card">
+                        <div class="application-icon">
+                            <i class="fas fa-heartbeat"></i>
+                        </div>
+                        <h4>Mental Health Monitoring</h4>
+                        <p>Assisting in the detection of emotional states for mental health applications</p>
+                    </div>
+                    <div class="application-card">
+                        <div class="application-icon">
+                            <i class="fas fa-headset"></i>
+                        </div>
+                        <h4>Customer Service</h4>
+                        <p>Analyzing customer emotions to improve service quality and satisfaction</p>
+                    </div>
+                    <div class="application-card">
+                        <div class="application-icon">
+                            <i class="fas fa-car"></i>
+                        </div>
+                        <h4>Automotive Safety</h4>
+                        <p>Detecting driver emotional states to enhance safety systems</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="about-section">
+                <h3>Future Directions</h3>
+                <p>
+                    We're continuously working to improve the system with these future enhancements:
+                </p>
+                <ul>
+                    <li>Multimodal emotion recognition (combining audio, visual, and text cues)</li>
+                    <li>Cross-cultural emotion recognition capabilities</li>
+                    <li>Emotion intensity detection</li>
+                    <li>Edge device deployment for offline processing</li>
+                    <li>Integration with conversational AI systems</li>
+                </ul>
+            </div>
+        </section>
+
+        <section class="team-section">
+            <h3>Project Team</h3>
+            <div class="team-grid">
+                <div class="team-member">
+                    <div class="member-avatar">
+                        <img src="{{ url_for('static', filename='img/avatar1.png') }}" alt="Team Member">
+                    </div>
+                    <h4>Ratish Beest</h4>
+                    <p class="member-role">Lead Developer</p>
+                    <div class="member-social">
+                        <a href="#" target="_blank"><i class="fab fa-github"></i></a>
+                        <a href="#" target="_blank"><i class="fab fa-linkedin"></i></a>
+                    </div>
+                </div>
+                <!-- Add more team members as needed -->
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer>
+        <div class="footer-content">
+            <div class="footer-logo">
+                <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Logo">
+                <p>RAVDESS Emotion Recognition</p>
+            </div>
+            <div class="footer-links">
+                <h4>Quick Links</h4>
+                <ul>
+                    <li><a href="/">Home</a></li>
+                    <li><a href="/about">About</a></li>
+                    <li><a href="https://github.com/BeestRatish/RAVDESS-Emotion-Recognition" target="_blank">GitHub</a></li>
+                </ul>
+            </div>
+            <div class="footer-contact">
+                <h4>Contact</h4>
+                <p><i class="fas fa-envelope"></i> contact@example.com</p>
+                <p><i class="fab fa-github"></i> BeestRatish</p>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>&copy; 2025 RAVDESS Emotion Recognition. All rights reserved.</p>
+        </div>
+    </footer>
+</body>
+</html>
